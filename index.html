@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VaultPoker">
+<meta name="theme-color" content="#0a0f08">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>VaultPoker</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0a0f08;--felt:#0d2414;--felt2:#0f2a16;--border:#1a3a20;--border2:#2a5a30;
+  --gold:#d4af37;--gold2:#f0cc5a;--cream:#f5ead8;
+  --red:#cc2222;--green:#22aa44;--green2:#4ade80;
+  --card-bg:#faf6ee;--card-border:#ccc;
+  --text:#c8d8c0;--text2:#7a9a7a;
+}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--cream);font-family:'IBM Plex Mono',monospace;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+
+/* ── LOBBY ── */
+#lobby{display:flex;flex-direction:column;align-items:center;gap:16px;width:min(420px,92vw);padding:12px;}
+.logo{font-family:'Cinzel',serif;font-size:clamp(26px,7vw,38px);font-weight:700;color:var(--gold);letter-spacing:3px;text-shadow:0 0 30px rgba(212,175,55,.3);text-align:center;}
+.logo span{display:block;font-size:clamp(9px,2vw,11px);letter-spacing:5px;color:var(--text2);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.lcard{background:#0d1a0e;border:1px solid var(--border);border-radius:10px;padding:20px;width:100%;}
+.lcard h3{font-family:'Cinzel',serif;color:var(--gold);margin-bottom:14px;font-size:15px;}
+.inp{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--cream);padding:13px 14px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.inp:focus{border-color:var(--gold);}
+.btn{width:100%;padding:13px;border-radius:6px;border:none;font-family:'Cinzel',serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;touch-action:manipulation;-webkit-appearance:none;}
+.btn-gold{background:var(--gold);color:#0a0f08;}
+.btn-gold:active{background:var(--gold2);}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-outline:active{border-color:var(--gold);color:var(--gold);}
+.divider{display:flex;align-items:center;gap:10px;color:#2a4a2a;font-size:11px;width:100%;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+#lStatus{font-size:12px;text-align:center;min-height:16px;color:var(--text2);}
+#lStatus.ok{color:var(--green2);}#lStatus.err{color:var(--red);}
+#codeBox{background:var(--bg);border:2px solid var(--gold);border-radius:6px;padding:12px;font-size:24px;letter-spacing:10px;text-align:center;color:var(--gold2);cursor:pointer;display:none;margin-top:10px;font-family:'Cinzel',serif;}
+.setting-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.setting-row label{color:var(--text2);font-size:12px;white-space:nowrap;flex:0 0 auto;}
+.setting-row select{flex:1;background:var(--bg);border:1px solid var(--border2);color:var(--cream);padding:10px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;}
+.waiting-room{display:none;flex-direction:column;gap:8px;margin-top:10px;}
+.waiting-room .seat{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:5px;background:rgba(255,255,255,.04);border:1px solid var(--border);font-size:12px;}
+.seat .dot{width:8px;height:8px;border-radius:50%;background:#333;}
+.seat .dot.filled{background:var(--green2);}
+.seat-name{color:var(--text);}
+#startBtn{display:none;margin-top:6px;}
+#waitNote{font-size:11px;color:var(--text2);text-align:center;display:none;}
+
+/* ── TABLE ── */
+#table{display:none;flex-direction:column;align-items:center;width:100%;height:100%;overflow:hidden;padding:6px 4px;}
+.felt-wrap{background:radial-gradient(ellipse at center,var(--felt2) 0%,var(--felt) 70%,#061008 100%);border:3px solid #1a3a20;border-radius:clamp(16px,4vw,40px);padding:clamp(10px,2.5vw,18px);width:100%;flex:1;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 40px rgba(0,0,0,.9),inset 0 0 20px rgba(0,0,0,.3);}
+
+/* player seats */
+.opp-area{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.p-label{font-family:'Cinzel',serif;font-size:clamp(10px,2.5vw,13px);color:var(--text2);letter-spacing:2px;}
+.p-label.active-p{color:var(--gold);}
+.hand{display:flex;gap:clamp(4px,1.5vw,8px);justify-content:center;align-items:center;min-height:clamp(50px,11vw,78px);}
+.stack-info{font-size:clamp(9px,2vw,11px);color:var(--text);}
+.stack-info b{color:var(--gold);}
+.blind-tag{font-size:clamp(9px,1.8vw,11px);color:var(--text2);letter-spacing:1px;min-height:14px;}
+
+/* community */
+.comm-area{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.comm-cards{display:flex;gap:clamp(4px,1.5vw,7px);justify-content:center;min-height:clamp(52px,11vw,80px);align-items:center;}
+.pot-row{font-family:'Cinzel',serif;font-size:clamp(12px,3vw,16px);color:var(--gold);letter-spacing:1px;}
+#phaseLabel{font-family:'Cinzel',serif;font-size:clamp(9px,2vw,12px);color:var(--text2);letter-spacing:3px;}
+
+/* my area */
+.my-area{display:flex;flex-direction:column;align-items:center;gap:4px;}
+
+/* card */
+.card-el{background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:clamp(4px,1.5vw,8px);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.5);position:relative;overflow:hidden;flex-shrink:0;}
+.card-el.back{background:repeating-linear-gradient(135deg,#1e3a8a,#1e3a8a 4px,#162d6e 4px,#162d6e 8px);border-color:#1e3a8a;}
+.card-el .rank{position:absolute;top:3px;left:4px;font-size:clamp(9px,2.5vw,14px);line-height:1;font-weight:bold;}
+.card-el .suit{position:absolute;bottom:3px;right:4px;font-size:clamp(9px,2.5vw,14px);line-height:1;transform:rotate(180deg);}
+.card-el.rc{color:var(--red);}
+.card-el.bc{color:#111;}
+.card-el.highlight{box-shadow:0 0 10px var(--gold),0 2px 8px rgba(0,0,0,.5);border-color:var(--gold);}
+
+/* actions bar — sits OUTSIDE the felt */
+#actionsBar{display:none;flex-direction:column;gap:6px;width:100%;padding:6px 4px 2px;max-width:560px;}
+.act-row{display:flex;gap:6px;justify-content:center;}
+.act-btn{padding:clamp(9px,2.5vw,13px) clamp(10px,3vw,20px);border-radius:6px;border:none;
+  font-family:'Cinzel',serif;font-size:clamp(11px,2.5vw,13px);font-weight:700;
+  cursor:pointer;letter-spacing:1px;touch-action:manipulation;flex:1;max-width:140px;transition:all .15s;}
+.fold-btn{background:#3a1010;color:#f87171;border:1px solid #6a2020;}
+.fold-btn:active{background:#4a1818;}
+.call-btn{background:#0e2e10;color:#4ade80;border:1px solid #1a5a20;}
+.call-btn:active{background:#163a18;}
+.raise-btn{background:#2e2a08;color:var(--gold);border:1px solid #5a5010;}
+.raise-btn:active{background:#3e3810;}
+.check-btn{background:#0d1a0e;color:var(--text);border:1px solid var(--border2);}
+.check-btn:active{border-color:var(--green2);}
+.raise-row{display:flex;gap:6px;align-items:center;justify-content:center;}
+.raise-row input{background:var(--bg);border:1px solid var(--border2);color:var(--cream);
+  padding:9px 10px;border-radius:6px;font-family:'IBM Plex Mono',monospace;
+  font-size:14px;width:88px;outline:none;-webkit-appearance:none;text-align:center;}
+.raise-row input:focus{border-color:var(--gold);}
+#gLog{font-size:clamp(10px,2.5vw,12px);color:var(--text2);text-align:center;
+  font-style:italic;min-height:14px;padding:2px 4px;}
+
+/* result overlay */
+.result-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;align-items:center;justify-content:center;}
+.result-ov.show{display:flex;}
+.result-box{background:#0d1a0e;border:2px solid var(--gold);border-radius:14px;padding:28px 24px;text-align:center;max-width:min(360px,90vw);}
+.result-box h2{font-family:'Cinzel',serif;color:var(--gold);font-size:clamp(20px,5vw,26px);margin-bottom:10px;}
+.result-box .hand-names{color:var(--text);font-size:clamp(11px,3vw,14px);margin-bottom:6px;line-height:1.5;}
+.result-box .stack-change{font-size:clamp(12px,3vw,15px);margin-bottom:18px;color:var(--green2);}
+.result-box .stack-change.loss{color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div class="logo">VaultPoker<span>P2P TEXAS HOLD'EM · NO SERVER</span></div>
+
+  <div class="lcard">
+    <h3>♠ Host Table</h3>
+    <div class="setting-row">
+      <label>Starting chips:</label>
+      <select id="chipsSelect">
+        <option value="500">$500</option>
+        <option value="1000" selected>$1,000</option>
+        <option value="2000">$2,000</option>
+        <option value="5000">$5,000</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label>Blinds:</label>
+      <select id="blindsSelect">
+        <option value="1,2">$1 / $2</option>
+        <option value="5,10" selected>$5 / $10</option>
+        <option value="10,20">$10 / $20</option>
+        <option value="25,50">$25 / $50</option>
+      </select>
+    </div>
+    <button class="btn btn-gold" onclick="createGame()">Create Room</button>
+    <div id="codeBox" onclick="copyCode()"></div>
+    <div class="waiting-room" id="waitingRoom"></div>
+    <div id="waitNote">Share the code — waiting for opponent to join...</div>
+    <button class="btn btn-gold" id="startBtn" onclick="hostStartGame()">Start Game ▸</button>
+  </div>
+
+  <div class="divider">or join</div>
+
+  <div class="lcard">
+    <h3>♣ Join Table</h3>
+    <input class="inp" id="joinCode" placeholder="Room code" maxlength="8" style="margin-bottom:10px;text-transform:uppercase;letter-spacing:3px;" oninput="this.value=this.value.toUpperCase()">
+    <button class="btn btn-outline" onclick="joinGame()">Sit Down</button>
+  </div>
+
+  <div id="lStatus"></div>
+</div>
+
+<!-- TABLE -->
+<div id="table">
+  <div class="felt-wrap">
+    <div class="opp-area">
+      <div class="p-label" id="oppLbl">Opponent</div>
+      <div class="blind-tag" id="oppBlind"></div>
+      <div class="hand" id="oppHand"></div>
+      <div class="stack-info">Stack: <b id="oppStack">—</b> &nbsp; Bet: <b id="oppBet">—</b></div>
+    </div>
+    <div class="comm-area">
+      <div id="phaseLabel">—</div>
+      <div class="comm-cards" id="commCards"></div>
+      <div class="pot-row">POT: $<span id="potDisp">0</span></div>
+    </div>
+    <div class="my-area">
+      <div class="stack-info">Stack: <b id="myStack">—</b> &nbsp; Bet: <b id="myBet">—</b></div>
+      <div class="hand" id="myHand"></div>
+      <div class="blind-tag" id="myBlind"></div>
+      <div class="p-label active-p" id="myLbl">You</div>
+    </div>
+  </div>
+  <div id="actionsBar">
+    <div class="act-row">
+      <button class="act-btn fold-btn" onclick="doFold()">FOLD</button>
+      <button class="act-btn check-btn" id="checkBtn" onclick="doCheck()">CHECK</button>
+      <button class="act-btn call-btn" id="callBtn" style="display:none" onclick="doCall()">CALL $<span id="callAmt">0</span></button>
+    </div>
+    <div class="raise-row">
+      <input type="number" id="raiseAmt" min="1">
+      <button class="act-btn raise-btn" onclick="doRaise()">RAISE</button>
+    </div>
+  </div>
+  <div id="gLog">—</div>
+</div>
+
+<div class="result-ov" id="resultOv">
+  <div class="result-box">
+    <h2 id="rTitle"></h2>
+    <div class="hand-names" id="rHands"></div>
+    <div class="stack-change" id="rChange"></div>
+    <button class="btn btn-gold" style="max-width:200px" onclick="newHand()">Next Hand ▸</button>
+  </div>
+</div>
+
+<script>
+// ─── DEVICE ───────────────────────────────────────────────────────────────────
+const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||window.innerWidth<600;
+
+// ─── CARDS ────────────────────────────────────────────────────────────────────
+const SUITS=['♠','♥','♦','♣'],RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const SUIT_COL={'♠':'bc','♣':'bc','♥':'rc','♦':'rc'};
+
+function makeDeck(){
+  const d=[];for(const s of SUITS)for(const r of RANKS)d.push({r,s});
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;
+}
+
+function cardSize(){
+  const vw=window.innerWidth,vh=window.innerHeight;
+  const w=Math.floor(Math.min(vw/8,vh/9,58));
+  return{w,h:Math.round(w*1.44)};
+}
+
+function makeCardEl(card,back){
+  const{w,h}=cardSize();
+  const el=document.createElement('div');
+  el.className='card-el'+(back?' back':'')+((!back&&card)?' '+SUIT_COL[card.s]:'');
+  el.style.width=w+'px';el.style.height=h+'px';
+  if(!back&&card){
+    const rk=document.createElement('div');rk.className='rank';rk.textContent=card.r;
+    const su=document.createElement('div');su.className='suit';su.textContent=card.s;
+    el.appendChild(rk);el.appendChild(su);
+  }
+  return el;
+}
+
+window.addEventListener('resize',()=>{if(myCards.length)renderAll();});
+
+// ─── HAND EVAL ────────────────────────────────────────────────────────────────
+function evalHand(cards){
+  const rv=r=>RANKS.indexOf(r);
+  const counts={};cards.forEach(c=>{counts[c.r]=(counts[c.r]||0)+1;});
+  const freq=Object.entries(counts).map(([r,n])=>({r,n,v:rv(r)})).sort((a,b)=>b.n-a.n||b.v-a.v);
+  const suitG={};cards.forEach(c=>{(suitG[c.s]=suitG[c.s]||[]).push(c);});
+  const vals=cards.map(c=>rv(c.r)).sort((a,b)=>b-a);
+  function straight(vs){
+    const u=[...new Set(vs)].sort((a,b)=>b-a);
+    for(let i=0;i<=u.length-5;i++){
+      const s=u.slice(i,i+5);
+      if(s[0]-s[4]===4&&new Set(s).size===5)return s[0];
+    }
+    if(u.includes(12)&&[0,1,2,3].every(v=>u.includes(v)))return 3;
+    return -1;
+  }
+  const flushS=Object.entries(suitG).find(([,cs])=>cs.length>=5);
+  if(flushS){
+    const fv=flushS[1].map(c=>rv(c.r)).sort((a,b)=>b-a);
+    const sf=straight(fv);
+    if(sf>=0)return{rank:8,name:sf===12?'Royal Flush':'Straight Flush'};
+    return{rank:5,name:'Flush'};
+  }
+  const st=straight(vals);
+  if(freq[0].n===4)return{rank:7,name:'Four of a Kind'};
+  if(freq[0].n===3&&freq[1]?.n>=2)return{rank:6,name:'Full House'};
+  if(st>=0)return{rank:4,name:'Straight'};
+  if(freq[0].n===3)return{rank:3,name:'Three of a Kind'};
+  if(freq[0].n===2&&freq[1]?.n===2)return{rank:2,name:'Two Pair'};
+  if(freq[0].n===2)return{rank:1,name:'One Pair'};
+  return{rank:0,name:'High Card ('+RANKS[Math.max(...vals)]+')'};
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let peer,conn,amHost=false,gameReady=false,
+    myStack=1000,oppStack=1000,
+    myBetAmt=0,oppBetAmt=0,pot=0,
+    myCards=[],oppCards=[],comm=[],deck=[],
+    phase='preflop',myTurn=false,toCall=0,
+    myIsDealer=false,handNum=0,SB=5,BB=10,
+    startChips=1000;
+
+function setSt(m,c=''){const e=document.getElementById('lStatus');e.textContent=m;e.className=c;}
+function log(m){document.getElementById('gLog').textContent=m;}
+
+// ─── PEER / ICE ───────────────────────────────────────────────────────────────
+const ICE={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:openrelay.metered.ca:80'},
+  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}
+]};
+
+// ─── HOST FLOW ────────────────────────────────────────────────────────────────
+function createGame(){
+  // Read settings
+  const bl=document.getElementById('blindsSelect').value.split(',');
+  SB=parseInt(bl[0]);BB=parseInt(bl[1]);
+  startChips=parseInt(document.getElementById('chipsSelect').value);
+  myStack=startChips;oppStack=startChips;
+
+  const code=Math.random().toString(36).slice(2,8).toUpperCase();
+  peer=new Peer(code,{config:ICE});
+
+  peer.on('open',()=>{
+    const b=document.getElementById('codeBox');
+    b.textContent=code;b.style.display='block';
+    document.getElementById('waitNote').style.display='block';
+    const wr=document.getElementById('waitingRoom');
+    wr.style.display='flex';
+    wr.innerHTML=`
+      <div class="seat"><div class="dot filled"></div><span class="seat-name">You (Host)</span></div>
+      <div class="seat" id="seat1"><div class="dot"></div><span class="seat-name" style="color:var(--text2)">Waiting for player...</span></div>`;
+    setSt('Room created — share the code!','ok');
+  });
+
+  peer.on('connection',c=>{
+    conn=c;amHost=true;
+    // Wait for data channel to fully open before doing anything
+    conn.on('open',()=>{
+      // Update waiting room UI
+      document.getElementById('seat1').innerHTML='<div class="dot filled"></div><span class="seat-name">Opponent joined ✓</span>';
+      document.getElementById('waitNote').textContent='Opponent connected! Start when ready.';
+      document.getElementById('startBtn').style.display='block';
+      setSt('Opponent connected!','ok');
+    });
+    conn.on('data',onData);
+    conn.on('close',()=>log('Opponent disconnected'));
+  });
+
+  peer.on('error',e=>setSt('Error: '+e.type,'err'));
+}
+
+function hostStartGame(){
+  // Send config to joiner, then both transition to table
+  conn.send({t:'gameStart',SB,BB,chips:startChips});
+  beginGame();
+}
+
+// ─── JOIN FLOW ────────────────────────────────────────────────────────────────
+function joinGame(){
+  const code=document.getElementById('joinCode').value.trim().toUpperCase();
+  if(code.length<4){setSt('Enter a valid code','err');return;}
+  setSt('Connecting...','');
+  peer=new Peer(undefined,{config:ICE});
+  peer.on('open',()=>{
+    conn=peer.connect(code,{reliable:true});
+    conn.on('open',()=>{
+      setSt('Connected! Waiting for host to start...','ok');
+      // Joiner is ready — host will send gameStart when they click the button
+    });
+    conn.on('data',onData);
+    conn.on('close',()=>log('Host disconnected'));
+  });
+  peer.on('error',()=>setSt('Could not connect — check the code','err'));
+}
+
+// ─── DATA HANDLER ─────────────────────────────────────────────────────────────
+function onData(d){
+  if(d.t==='gameStart'){
+    // Joiner receives game config and transitions to table
+    SB=d.SB;BB=d.BB;startChips=d.chips;
+    myStack=startChips;oppStack=startChips;
+    beginGame();
+  }
+  else if(d.t==='deal'){
+    // Joiner receives their hand
+    myCards=d.myCards;oppCards=[];comm=[];
+    myBetAmt=0;oppBetAmt=0;
+    pot=d.pot;
+    myIsDealer=d.yourDealer;
+    phase='preflop';
+    myStack=d.yourStack;
+    oppStack=d.oppStack;
+    toCall=d.toCall;
+    renderAll();
+    myTurn=d.yourTurn;
+    updateActions();
+    log(d.msg||'New hand dealt.');
+  }
+  else if(d.t==='action'){handleOppAction(d);}
+  else if(d.t==='showdown'){
+    oppCards=d.oppCards;
+    renderAll();
+    resolveShowdown();
+  }
+  else if(d.t==='new_hand'){
+    if(amHost)dealNewHand();
+  }
+}
+
+function copyCode(){
+  const t=document.getElementById('codeBox').textContent;
+  if(navigator.share&&isMobile){navigator.share({title:'VaultPoker',text:'Join my poker game! Code: '+t});}
+  else{navigator.clipboard.writeText(t).catch(()=>{});}
+}
+
+// ─── GAME ─────────────────────────────────────────────────────────────────────
+function beginGame(){
+  // Both host and joiner call this to show the table
+  document.getElementById('lobby').style.display='none';
+  document.getElementById('table').style.display='flex';
+  gameReady=true;
+  if(amHost){
+    // Host deals after a short delay to ensure joiner's table is rendered
+    setTimeout(dealNewHand, 400);
+  }else{
+    log('Game starting — waiting for host to deal...');
+  }
+}
+
+function dealNewHand(){
+  if(!amHost)return;
+  handNum++;
+  deck=makeDeck();
+
+  // Alternate dealer
+  myIsDealer=(handNum%2===1);
+
+  const myC=[deck.pop(),deck.pop()];
+  const oppC=[deck.pop(),deck.pop()];
+  comm=[];
+
+  // Post blinds
+  const mySB=myIsDealer;
+  myBetAmt=mySB?SB:BB;
+  oppBetAmt=mySB?BB:SB;
+  pot=SB+BB;
+  myStack=myStack-myBetAmt;
+  oppStack=oppStack-oppBetAmt;
+  phase='preflop';
+
+  // Heads-up preflop: dealer/SB acts first
+  const myActsFirst=myIsDealer;
+  myTurn=myActsFirst;
+  toCall=myIsDealer?(BB-SB):0;
+
+  // Send to opponent
+  conn.send({
+    t:'deal',
+    myCards:oppC,
+    yourDealer:!myIsDealer,
+    yourStack:oppStack,
+    oppStack:myStack,
+    pot,
+    toCall:myIsDealer?0:(BB-SB),
+    yourTurn:!myActsFirst,
+    msg:(myIsDealer?'Opponent is Dealer/SB — Waiting':'Opponent is BB — Your turn')
+  });
+
+  myCards=myC;oppCards=[];
+  renderAll();
+  updateActions();
+  log(myIsDealer?'You are Dealer/SB ($'+SB+') — Your turn':'You are BB ($'+BB+') — Waiting for opponent');
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderAll(){
+  const{w,h}=cardSize();
+
+  // My hand
+  const mh=document.getElementById('myHand');mh.innerHTML='';
+  myCards.forEach(c=>{const el=makeCardEl(c,false);mh.appendChild(el);});
+
+  // Opp hand
+  const oh=document.getElementById('oppHand');oh.innerHTML='';
+  if(oppCards.length){oppCards.forEach(c=>{oh.appendChild(makeCardEl(c,false));});}
+  else{oh.appendChild(makeCardEl(null,true));oh.appendChild(makeCardEl(null,true));}
+
+  // Community
+  const cc=document.getElementById('commCards');cc.innerHTML='';
+  comm.forEach(c=>cc.appendChild(makeCardEl(c,false)));
+
+  // Numbers
+  document.getElementById('myStack').textContent='$'+myStack;
+  document.getElementById('oppStack').textContent='$'+oppStack;
+  document.getElementById('myBet').textContent='$'+myBetAmt;
+  document.getElementById('oppBet').textContent='$'+oppBetAmt;
+  document.getElementById('potDisp').textContent=pot;
+  document.getElementById('myBlind').textContent=myIsDealer?'◀ Dealer / SB':'Big Blind';
+  document.getElementById('oppBlind').textContent=myIsDealer?'Big Blind':'◀ Dealer / SB';
+  document.getElementById('phaseLabel').textContent=phase.toUpperCase();
+  document.getElementById('oppLbl').classList.toggle('active-p',!myTurn);
+  document.getElementById('myLbl').classList.toggle('active-p',myTurn);
+}
+
+function updateActions(){
+  const bar=document.getElementById('actionsBar');
+  bar.style.display=myTurn?'flex':'none';
+  const diff=Math.max(0,oppBetAmt-myBetAmt);
+  toCall=diff;
+  document.getElementById('callAmt').textContent=diff;
+  document.getElementById('callBtn').style.display=diff>0?'flex':'none';
+  document.getElementById('checkBtn').style.display=diff>0?'none':'flex';
+  const minRaise=Math.min(myStack,diff+BB);
+  document.getElementById('raiseAmt').value=minRaise;
+  document.getElementById('raiseAmt').min=minRaise;
+}
+
+// ─── ACTIONS ─────────────────────────────────────────────────────────────────
+function doFold(){
+  conn.send({t:'action',action:'fold'});
+  endHand('fold','you');
+}
+
+function doCheck(){
+  myTurn=false;
+  conn.send({t:'action',action:'check'});
+  updateActions();
+  log('You check.');
+  advanceStreet();
+}
+
+function doCall(){
+  const amt=Math.min(toCall,myStack);
+  myStack-=amt;myBetAmt+=amt;pot+=amt;
+  myTurn=false;
+  conn.send({t:'action',action:'call',amt});
+  updateActions();
+  log('You call $'+amt+'.');
+  renderAll();
+  advanceStreet();
+}
+
+function doRaise(){
+  const input=parseInt(document.getElementById('raiseAmt').value)||BB*2;
+  const amt=Math.min(input,myStack);
+  if(amt<=0)return;
+  myStack-=amt;myBetAmt+=amt;pot+=amt;
+  myTurn=false;
+  conn.send({t:'action',action:'raise',amt,totalBet:myBetAmt});
+  updateActions();
+  log('You raise to $'+myBetAmt+'.');
+  renderAll();
+}
+
+function handleOppAction(d){
+  if(d.action==='fold'){endHand('fold','opp');return;}
+  if(d.action==='check'){
+    log('Opponent checks.');
+    oppBetAmt=myBetAmt; // normalize
+    renderAll();
+    nextStreet();
+  }else if(d.action==='call'){
+    oppStack-=d.amt;oppBetAmt+=d.amt;pot+=d.amt;
+    log('Opponent calls $'+d.amt+'.');
+    renderAll();
+    nextStreet();
+  }else if(d.action==='raise'){
+    oppStack-=d.amt;oppBetAmt=d.totalBet;pot+=d.amt;
+    toCall=d.totalBet-myBetAmt;
+    log('Opponent raises to $'+d.totalBet+' — your turn.');
+    myTurn=true;
+    updateActions();
+    renderAll();
+  }
+}
+
+function advanceStreet(){
+  // If bets are equal after my action, move to next street
+  if(myBetAmt===oppBetAmt){
+    nextStreet();
+  }else{
+    log('Waiting for opponent...');
+  }
+}
+
+function nextStreet(){
+  myBetAmt=0;oppBetAmt=0;
+  if(phase==='preflop'){
+    comm=[deck.pop(),deck.pop(),deck.pop()];
+    phase='flop';
+  }else if(phase==='flop'){
+    comm.push(deck.pop());
+    phase='turn';
+  }else if(phase==='turn'){
+    comm.push(deck.pop());
+    phase='river';
+  }else if(phase==='river'){
+    if(amHost)doShowdown();
+    return;
+  }
+  // Post-flop heads-up: non-dealer (BB) acts first
+  myTurn=!myIsDealer;
+  renderAll();
+  updateActions();
+  log(phase.toUpperCase()+' — '+(myTurn?'Your turn':'Opponent\'s turn'));
+}
+
+function doShowdown(){
+  conn.send({t:'showdown',oppCards:myCards});
+  oppCards=oppCards.length?oppCards:[];
+  // We need opp cards — wait for them, or use what we sent
+  // Host knows both hands since it dealt them — but we need to show them
+  // Actually host doesn't know opp cards post-deal, so resolve on showdown message back
+  resolveShowdown();
+}
+
+function resolveShowdown(){
+  if(!oppCards.length)return; // wait for cards
+  const myE=evalHand([...myCards,...comm]);
+  const opE=evalHand([...oppCards,...comm]);
+  let title,hands,change,isLoss=false;
+  if(myE.rank>opE.rank||(myE.rank===opE.rank)){
+    if(myE.rank===opE.rank){
+      title='Split Pot';
+      hands='Both: '+myE.name;
+      const half=Math.floor(pot/2);
+      myStack+=half;oppStack+=half;
+      change='Each wins $'+half;
+    }else{
+      title='You Win! 🎉';
+      hands='Your '+myE.name+' beats '+opE.name;
+      myStack+=pot;
+      change='+$'+pot;
+    }
+  }else{
+    title='Opponent Wins';
+    hands='Their '+opE.name+' beats your '+myE.name;
+    oppStack+=pot;
+    change='-$'+pot;isLoss=true;
+  }
+  pot=0;
+  showResult(title,hands,change,isLoss);
+  renderAll();
+}
+
+function endHand(reason,who){
+  const title=who==='you'?'Opponent Wins':'You Win! 🎉';
+  const hands=who==='you'?'You folded':'Opponent folded';
+  const change=who==='you'?('-$'+pot):('+$'+pot);
+  const isLoss=who==='you';
+  if(who==='you')oppStack+=pot;else myStack+=pot;
+  pot=0;
+  showResult(title,hands,change,isLoss);
+  renderAll();
+}
+
+function showResult(title,hands,change,isLoss){
+  document.getElementById('rTitle').textContent=title;
+  document.getElementById('rHands').textContent=hands;
+  const ch=document.getElementById('rChange');
+  ch.textContent=change;
+  ch.className='stack-change'+(isLoss?' loss':'');
+  document.getElementById('resultOv').classList.add('show');
+  document.getElementById('actionsBar').style.display='none';
+}
+
+function newHand(){
+  document.getElementById('resultOv').classList.remove('show');
+  oppCards=[];
+  if(myStack<=0||oppStack<=0){
+    const msg=myStack<=0?'You are out of chips!':'Opponent is out of chips!';
+    log(msg);return;
+  }
+  if(amHost)dealNewHand();
+  else conn.send({t:'new_hand'});
+}
+</script>
+</body>
+</html>
